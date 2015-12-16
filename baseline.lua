@@ -113,7 +113,7 @@ function eval_split(split_index, max_batches)
             rnn_state[t] = clones.rnn[t]:forward{x[{{}, t}], unpack(rnn_state[t-1])}
             if type(rnn_state[t]) ~= 'table' then rnn_state[t] = {rnn_state[t]} end
             local prediction = clones.softmax[t]:forward(rnn_state[t][state_predict_index])
-            local result = clones.criterion[t]:forward({prediction, y[{{}, t}]})[1]
+            local result = clones.criterion[t]:forward({prediction, y[{{}, t}]})
             loss = loss + result[1]
             count_token = count_token + result[3]
         end
