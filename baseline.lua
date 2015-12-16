@@ -98,7 +98,7 @@ function eval_split(split_index, max_batches)
     loader:reset_batch_pointer(split_index) -- move batch iteration pointer for this split to front
     local loss = 0
     local rnn_state = {[0] = init_state}
-    
+    local count_token = 0
     for i = 1,n do -- iterate over batches in the split
         -- fetch a batch
         local x, y = loader:next_batch(split_index)
@@ -113,14 +113,16 @@ function eval_split(split_index, max_batches)
             rnn_state[t] = clones.rnn[t]:forward{x[{{}, t}], unpack(rnn_state[t-1])}
             if type(rnn_state[t]) ~= 'table' then rnn_state[t] = {rnn_state[t]} end
             local prediction = clones.softmax[t]:forward(rnn_state[t][state_predict_index])
-            loss = loss + clones.criterion[t]:forward({prediction, y[{{}, t}]})[1]
+            local result = clones.criterion[t]:forward({prediction, y[{{}, t}]})[1]
+            loss = loss + result[1]
+            count_token = count_token + result[3]
         end
         -- carry over lstm state
         rnn_state[0] = rnn_state[#rnn_state]
-        print(i .. '/' .. n .. '...')
+        print('evaluating' .. i .. '/' .. n .. '...')
     end
 
-    loss = loss / opt.seq_length / n  
+    loss = loss / count_token
     local perp = torch.exp(loss)    
     return perp
 end
@@ -233,4 +235,5 @@ for i = 1, iterations do
         break -- halt
     end
 end
-eval_split(3)
+local test_loss = eval_split(3)
+print (test_loss)
