@@ -116,7 +116,7 @@ function eval_split(split_index, max_batches)
             count = count + result[3]
         end
         -- carry over lstm state
-        rnn_state[0] = rnn_state[#rnn_state]
+        -- rnn_state[0] = rnn_state[#rnn_state]
         print('evaluating' .. i .. '/' .. n .. '...')
     end
     loss = loss / count
@@ -173,7 +173,7 @@ function feval(x)
     end
     ------------------------ misc ----------------------
     -- transfer final state to initial state (BPTT)
-    init_state_global = rnn_state[#rnn_state] 
+    -- init_state_global = rnn_state[#rnn_state] 
     -- renormalize gradients
     local grad_norm, shrink_factor
     grad_norm = torch.sqrt(grad_params:norm()^2)
