@@ -41,8 +41,8 @@ function BatchLoader.create(data_dir, batch_size, max_sentence_l)
           data = data:sub(1, batch_size * math.floor(len / batch_size))
        end
        local ydata = data:clone()
-       ydata:sub(1,-2):copy(data:sub(2,-1))
-       ydata[-1]:copy(data[1])
+       ydata:sub(1,-1,1,-2):copy(data:sub(1,-1,2,-1))
+       ydata[{{},-1}] = 0
        for i=1,data:size(1) do
          for j=1, data:size(2) do
            if data[i][j]== 0 then data[i][j]= 2 end
@@ -57,6 +57,7 @@ function BatchLoader.create(data_dir, batch_size, max_sentence_l)
     end
     self.batch_idx = {0,0,0}
     print(string.format('data load done. Number of batches in train: %d, val: %d, test: %d', self.split_sizes[1], self.split_sizes[2], self.split_sizes[3]))
+    print('sequence maximum length' .. self.max_sentence_l)
     collectgarbage()
     return self
 end
@@ -129,15 +130,15 @@ function BatchLoader.text_to_tensor(input_files, out_vocabfile, out_tensorfile, 
           local word_num = 1
           for rword in line:gmatch'([^%s]+)' do
              word_num = word_num + 1
-             if word_num == max_sentence_l + 2 then break end -- leave the last token to EOS
              if word2idx[rword]==nil then
                 idx2word[#idx2word + 1] = rword 
                 word2idx[rword] = #idx2word
              end
              output_tensors[split][sentence_num][word_num] = word2idx[rword]
+             if word_num == max_sentence_l + 1 then break end -- leave the last token to EOS
           end
           -- append the end token
-          output_tensors[split][sentence_num][word_num] = word2idx[tokens_END]
+          output_tensors[split][sentence_num][word_num+1] = word2idx[tokens_END]
        end
     end
     print "done"

@@ -20,11 +20,11 @@ cmd:option('-rnn_size', 200, 'size of LSTM internal state')
 cmd:option('-word_vec_size', 200, 'size of word embeddings')
 cmd:option('-num_layers', 1, 'number of layers in the LSTM')
 -- optimization
-cmd:option('-learning_rate',1,'learning rate')
-cmd:option('-decay_rate',0.75,'decay rate for sgd')
+cmd:option('-learning_rate',0.1,'learning rate')
+cmd:option('-decay_rate',0.97,'decay rate for sgd')
 cmd:option('-dropout',0.5,'dropout to use just before classifier. 0 = no dropout')
-cmd:option('-seq_length',50,'maximum sentence length')
-cmd:option('-batch_size',10,'number of sequences to train on in parallel')
+cmd:option('-seq_length',500,'maximum sentence length')
+cmd:option('-batch_size',30,'number of sequences to train on in parallel')
 cmd:option('-max_epochs',30,'number of full passes through the training data')
 cmd:option('-max_grad_norm',5,'normalize gradients at')
 -- bookkeeping
@@ -52,7 +52,7 @@ local loader = BatchLoader.create(opt.data_dir, opt.batch_size, opt.seq_length)
 opt.vocab_size = loader.vocab_size  -- the number of distinct words
 print('vocab size: ' .. opt.vocab_size)
 opt.seq_length = loader.max_sentence_l
-print('sequence length: ' .. opt.seq_length)
+print('double check sequence length: ' .. opt.seq_length)
 -- make sure output directory exists
 if not path.exists(opt.checkpoint_dir) then lfs.mkdir(opt.checkpoint_dir) end
 
