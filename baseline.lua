@@ -16,17 +16,17 @@ cmd:text('Options')
 -- data
 cmd:option('-data_dir','data/ptb','data directory. Should contain the file input.txt with input data')
 -- model params
-cmd:option('-rnn_size', 150, 'size of LSTM internal state')
-cmd:option('-word_vec_size', 100, 'size of word embeddings')
-cmd:option('-num_layers', 2, 'number of layers in the LSTM')
+cmd:option('-rnn_size', 200, 'size of LSTM internal state')
+cmd:option('-word_vec_size', 200, 'size of word embeddings')
+cmd:option('-num_layers', 1, 'number of layers in the LSTM')
 -- optimization
-cmd:option('-learning_rate',2e-3,'learning rate')
-cmd:option('-decay_rate',0.95,'decay rate for rmsprop')
+cmd:option('-learning_rate',1,'learning rate')
+cmd:option('-decay_rate',0.75,'decay rate for sgd')
 cmd:option('-dropout',0.5,'dropout to use just before classifier. 0 = no dropout')
-cmd:option('-seq_length',20,'maximum sentence length')
+cmd:option('-seq_length',50,'maximum sentence length')
 cmd:option('-batch_size',10,'number of sequences to train on in parallel')
 cmd:option('-max_epochs',30,'number of full passes through the training data')
-cmd:option('-grad_clip',5,'clip gradients at')
+cmd:option('-max_grad_norm',5,'normalize gradients at')
 -- bookkeeping
 cmd:option('-seed',123,'torch manual random number generator seed')
 cmd:option('-print_every',1,'how many steps/minibatches between printing out the loss')
@@ -68,9 +68,6 @@ for L=1,opt.num_layers do
     table.insert(init_state, h_init:clone())
     table.insert(init_state, h_init:clone())
 end
-state_predict_index = #init_state -- index of blob to make prediction from
--- classifier on top
-protos.softmax = nn.Sequential():add(nn.Linear(opt.rnn_size, opt.vocab_size)):add(nn.LogSoftMax())
 -- training criterion (negative log likelihood)
 protos.criterion = nn.MaskedLoss()
 
@@ -98,7 +95,7 @@ function eval_split(split_index, max_batches)
     loader:reset_batch_pointer(split_index) -- move batch iteration pointer for this split to front
     local loss = 0
     local rnn_state = {[0] = init_state}
-    -- local count_token = 0
+    local count = 0
     for i = 1,n do -- iterate over batches in the split
         -- fetch a batch
         local x, y = loader:next_batch(split_index)
@@ -110,18 +107,19 @@ function eval_split(split_index, max_batches)
         -- forward pass
         for t=1,opt.seq_length do
             clones.rnn[t]:evaluate() -- for dropout proper functioning
-            rnn_state[t] = clones.rnn[t]:forward{x[{{}, t}], unpack(rnn_state[t-1])}
-            if type(rnn_state[t]) ~= 'table' then rnn_state[t] = {rnn_state[t]} end
-            local prediction = clones.softmax[t]:forward(rnn_state[t][state_predict_index])
-            local result = clones.criterion[t]:forward({prediction, y[{{}, t}]})
+            local lst = clones.rnn[t]:forward{x[{{},t}], unpack(rnn_state[t-1])}
+            rnn_state[t] = {}
+            for i=1,#init_state do table.insert(rnn_state[t], lst[i]) end
+            prediction = lst[#lst] 
+            local result = clones.criterion[t]:forward({prediction, y[{{},t}]})
             loss = loss + result[1]
+            count = count + result[3]
         end
         -- carry over lstm state
         rnn_state[0] = rnn_state[#rnn_state]
         print('evaluating' .. i .. '/' .. n .. '...')
     end
-
-    loss = loss / opt.seq_length / n
+    loss = loss / count
     local perp = torch.exp(loss)    
     return perp
 end
@@ -133,7 +131,6 @@ function feval(x)
         params:copy(x)
     end
     grad_params:zero()
-
     ------------------ get minibatch -------------------
     local x, y = loader:next_batch(1)
     if opt.gpuid >= 0 then -- ship the input arrays to GPU
@@ -145,30 +142,29 @@ function feval(x)
     local rnn_state = {[0] = init_state_global}
     local predictions = {}           -- softmax outputs
     local loss = 0
+    local count = 0
     for t=1,opt.seq_length do
         clones.rnn[t]:training() -- make sure we are in correct mode (this is cheap, sets flag)
-        rnn_state[t] = clones.rnn[t]:forward{x[{{}, t}], unpack(rnn_state[t-1])}
-        -- the following line is needed because nngraph tries to be clever
-        if type(rnn_state[t]) ~= 'table' then rnn_state[t] = {rnn_state[t]} end
-        predictions[t] = clones.softmax[t]:forward(rnn_state[t][state_predict_index])
-        loss = loss + clones.criterion[t]:forward({predictions[t], y[{{}, t}]})[1]
+        local lst = clones.rnn[t]:forward{x[{{},t}], unpack(rnn_state[t-1])}
+        rnn_state[t] = {}
+        for i=1,#init_state do table.insert(rnn_state[t], lst[i]) end -- extract the state, without output
+        predictions[t] = lst[#lst] -- last element is the prediction
+        local result = clones.criterion[t]:forward({predictions[t], y[{{},t}]})
+        loss = loss + result[1]
+        count = count + result[3]
     end
-    loss = loss / opt.seq_length 
+    loss = loss / count
     ------------------ backward pass -------------------
     -- initialize gradient at time t to be zeros (there's no influence from future)
     local drnn_state = {[opt.seq_length] = clone_list(init_state, true)} -- true also zeros the clones
     for t=opt.seq_length,1,-1 do
         -- backprop through loss, and softmax/linear
-        local doutput_t = clones.criterion[t]:backward({predictions[t], y[{{}, t}]})
-        drnn_state[t][state_predict_index] = clones.softmax[t]:backward(rnn_state[t][state_predict_index], doutput_t)
-        -- backprop through LSTM timestep
-        local drnn_statet_passin = drnn_state[t]
-        -- we have to be careful with nngraph again
-        if #(rnn_state[t]) == 1 then drnn_statet_passin = drnn_state[t][1] end
-        local dlst = clones.rnn[t]:backward({x[{{}, t}], unpack(rnn_state[t-1])}, drnn_statet_passin)
+        local doutput_t = clones.criterion[t]:backward({predictions[t], y[{{},t}]})
+        table.insert(drnn_state[t], doutput_t)
+        local dlst = clones.rnn[t]:backward({x[{{},t}], unpack(rnn_state[t-1])}, drnn_state[t])
         drnn_state[t-1] = {}
         for k,v in pairs(dlst) do
-            if k > 1 then
+            if k > 1 then -- k == 1 is gradient on x, which we dont need
                 -- note we do k-1 because first item is dembeddings, and then follow the 
                 -- derivatives of the state, starting at index 2. I know...
                 drnn_state[t-1][k-1] = v
@@ -177,27 +173,31 @@ function feval(x)
     end
     ------------------------ misc ----------------------
     -- transfer final state to initial state (BPTT)
-    init_state_global = rnn_state[#rnn_state] -- NOTE: I don't think this needs to be a clone, right?
-    -- clip gradient element-wise
-    grad_params:clamp(-opt.grad_clip, opt.grad_clip)
-    return loss, grad_params
+    init_state_global = rnn_state[#rnn_state] 
+    -- renormalize gradients
+    local grad_norm, shrink_factor
+    grad_norm = torch.sqrt(grad_params:norm()^2)
+    if grad_norm > opt.max_grad_norm then
+        shrink_factor = opt.max_grad_norm / grad_norm
+        grad_params:mul(shrink_factor)
+    end
+    params:add(grad_params:mul(-lr))
+    return loss
 end
 
 -- start optimization here
 train_losses = {}
 val_losses = {} -- actually the perp
+lr = opt.learning_rate
 local optim_state = {learningRate = opt.learning_rate, alpha = opt.decay_rate}
 local iterations = opt.max_epochs * loader.split_sizes[1]
 local iterations_per_epoch = loader.split_sizes[1]
 local loss0 = nil
 for i = 1, iterations do
     local epoch = i / loader.split_sizes[1]
-
     local timer = torch.Timer()
-    local _, loss = optim.rmsprop(feval, params, optim_state)
+    local train_loss = feval(params)
     local time = timer:time().real
-
-    local train_loss = loss[1] -- the loss is inside a list, pop it
     train_losses[i] = train_loss
 
     -- every now and then or on last iteration
@@ -224,12 +224,16 @@ for i = 1, iterations do
     if i % opt.print_every == 0 then
         print(string.format("%d/%d (epoch %.3f), train_loss = %6.8f, grad/param norm = %6.4e, time/batch = %.2fs", i, iterations, epoch, train_loss, grad_params:norm() / params:norm(), time))
     end
-   
-    if i % 10 == 0 then collectgarbage() end
+    if i % loader.split_sizes[1] == 0 and #val_losses > 2 then
+        if val_losses[#val_losses-1] - val_losses[#val_losses] < opt.decay_when then
+            lr = lr * opt.learning_rate_decay
+	end
+    end    
 
+    if i % 10 == 0 then collectgarbage() end
     -- handle early stopping if things are going really bad
-    if loss0 == nil then loss0 = loss[1] end
-    if loss[1] > loss0 * 3 then
+    if loss0 == nil then loss0 = train_loss end
+    if train_loss > loss0 * 3 then
         print('loss is exploding, aborting.')
         break -- halt
     end

@@ -56,6 +56,13 @@ function LSTM.lstm(input_size, rnn_size, n, dropout, word_emb_size)
     table.insert(outputs, next_c)
     table.insert(outputs, next_h)
   end
+ 
+  local top_h = outputs[#outputs]
+  if dropout > 0 then top_h = nn.Dropout(dropout)(top_h) end
+  local proj = nn.Linear(rnn_size, input_size)(top_h):annotate{name='decoder'}
+  local logsoft = nn.LogSoftMax()(proj)
+  table.insert(outputs, logsoft)
+
   return nn.gModule(inputs, outputs)
 end
 
