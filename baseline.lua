@@ -24,7 +24,7 @@ cmd:option('-learning_rate',0.1,'learning rate')
 cmd:option('-decay_rate',0.97,'decay rate for sgd')
 cmd:option('-dropout',0.5,'dropout to use just before classifier. 0 = no dropout')
 cmd:option('-seq_length',500,'maximum sentence length')
-cmd:option('-batch_size',30,'number of sequences to train on in parallel')
+cmd:option('-batch_size',40,'number of sequences to train on in parallel')
 cmd:option('-max_epochs',30,'number of full passes through the training data')
 cmd:option('-max_grad_norm',5,'normalize gradients at')
 -- bookkeeping
