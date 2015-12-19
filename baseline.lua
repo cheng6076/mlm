@@ -16,8 +16,8 @@ cmd:text('Options')
 -- data
 cmd:option('-data_dir','data/ptb','data directory. Should contain the file input.txt with input data')
 -- model params
-cmd:option('-rnn_size', 200, 'size of LSTM internal state')
-cmd:option('-word_vec_size', 200, 'size of word embeddings')
+cmd:option('-rnn_size', 300, 'size of LSTM internal state')
+cmd:option('-word_vec_size', 150, 'size of word embeddings')
 cmd:option('-num_layers', 1, 'number of layers in the LSTM')
 -- optimization
 cmd:option('-learning_rate',0.1,'learning rate')
