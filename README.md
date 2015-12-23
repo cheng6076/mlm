@@ -11,3 +11,7 @@ Currently I have implemented
 #### Gated Feedback LSTM
 A variation of the model described in *Gated Feedback Recurrent Neural Networks (Chung et al., 2015)*. Use 2 or more layers for it.  
 
+#### 1D-Grid LSTM
+1D version of Grid LSTM with cells on depth dimension as well. The original paper is *Grid LSTM (Kalchbrenner et al., 2015)*. This is also the architecture described in *Depth-Gated LSTM (Yao et al., 2015)*.
+
+If you spot any mistake of the code, please kindly let me know by contacting cheng6076@gmail.com. 

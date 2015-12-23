@@ -9,7 +9,7 @@ require 'util.misc'
 require 'util.MaskedLoss'
 local BatchLoader = require 'util.BatchLoader'
 local model_utils = require 'util.model_utils'
-local LSTM = require 'model.LSTM'
+local gridLSTM = require 'model.gridLSTM'
 
 cmd = torch.CmdLine()
 cmd:text('Options')
@@ -18,14 +18,14 @@ cmd:option('-data_dir','data/ptb','data directory. Should contain the file input
 -- model params
 cmd:option('-rnn_size', 300, 'size of LSTM internal state')
 cmd:option('-word_vec_size', 150, 'size of word embeddings')
-cmd:option('-num_layers', 1, 'number of layers in the LSTM')
+cmd:option('-num_layers', 3, 'number of layers in the LSTM')
 -- optimization
-cmd:option('-learning_rate',0.1,'learning rate')
-cmd:option('-decay_rate',0.97,'decay rate for sgd')
+cmd:option('-learning_rate',0.2,'learning rate')
+cmd:option('-decay_rate',0.8,'decay rate for sgd')
 cmd:option('-dropout',0.5,'dropout to use just before classifier. 0 = no dropout')
 cmd:option('-seq_length',500,'maximum sentence length')
 cmd:option('-batch_size',40,'number of sequences to train on in parallel')
-cmd:option('-max_epochs',30,'number of full passes through the training data')
+cmd:option('-max_epochs',60,'number of full passes through the training data')
 cmd:option('-max_grad_norm',5,'normalize gradients at')
 -- bookkeeping
 cmd:option('-seed',123,'torch manual random number generator seed')
@@ -59,7 +59,7 @@ if not path.exists(opt.checkpoint_dir) then lfs.mkdir(opt.checkpoint_dir) end
 -- define the model: prototypes for one timestep, then clone them in time
 protos = {}
 print('creating an LSTM with ' .. opt.num_layers .. ' layers')
-protos.rnn = LSTM.lstm(opt.vocab_size, opt.rnn_size, opt.num_layers, opt.dropout, opt.word_vec_size)
+protos.rnn = gridLSTM.gridlstm(opt.vocab_size, opt.rnn_size, opt.num_layers, opt.dropout, opt.word_vec_size)
 -- the initial state of the cell/hidden states
 init_state = {}
 for L=1,opt.num_layers do
@@ -219,6 +219,10 @@ for i = 1, iterations do
         checkpoint.epoch = epoch
         checkpoint.vocab = loader.vocab_mapping
         torch.save(savefile, checkpoint)
+        if val_loss < 130 then 
+          local test_loss = eval_split(3)
+          print (test_loss)
+        end
     end
 
     if i % opt.print_every == 0 then
