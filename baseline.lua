@@ -16,15 +16,15 @@ cmd:text('Options')
 -- data
 cmd:option('-data_dir','data/ptb','data directory. Should contain the file input.txt with input data')
 -- model params
-cmd:option('-rnn_size', 200, 'size of LSTM internal state')
-cmd:option('-word_vec_size', 200, 'size of word embeddings')
+cmd:option('-rnn_size', 300, 'size of LSTM internal state')
+cmd:option('-word_vec_size', 150, 'size of word embeddings')
 cmd:option('-num_layers', 1, 'number of layers in the LSTM')
 -- optimization
 cmd:option('-learning_rate',0.1,'learning rate')
 cmd:option('-decay_rate',0.97,'decay rate for sgd')
 cmd:option('-dropout',0.5,'dropout to use just before classifier. 0 = no dropout')
 cmd:option('-seq_length',500,'maximum sentence length')
-cmd:option('-batch_size',30,'number of sequences to train on in parallel')
+cmd:option('-batch_size',40,'number of sequences to train on in parallel')
 cmd:option('-max_epochs',30,'number of full passes through the training data')
 cmd:option('-max_grad_norm',5,'normalize gradients at')
 -- bookkeeping
@@ -116,7 +116,7 @@ function eval_split(split_index, max_batches)
             count = count + result[3]
         end
         -- carry over lstm state
-        rnn_state[0] = rnn_state[#rnn_state]
+        -- rnn_state[0] = rnn_state[#rnn_state]
         print('evaluating' .. i .. '/' .. n .. '...')
     end
     loss = loss / count
@@ -173,7 +173,7 @@ function feval(x)
     end
     ------------------------ misc ----------------------
     -- transfer final state to initial state (BPTT)
-    init_state_global = rnn_state[#rnn_state] 
+    -- init_state_global = rnn_state[#rnn_state] 
     -- renormalize gradients
     local grad_norm, shrink_factor
     grad_norm = torch.sqrt(grad_params:norm()^2)
