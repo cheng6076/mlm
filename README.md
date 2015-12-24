@@ -16,4 +16,3 @@ Perplexity 107
 1D version of Grid LSTM with cells on depth dimension as well. The original paper is *Grid LSTM (Kalchbrenner et al., 2015)*, also described in *Depth-Gated LSTM (Yao et al., 2015)*.
 Perplexity 112
 
-If you spot any mistake of the code, please kindly let me know by contacting cheng6076@gmail.com. 
