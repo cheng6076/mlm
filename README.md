@@ -6,14 +6,14 @@ Sentences with different lengths are masked to compute the exact perplexity. How
 
 Currently I have implemented
 #### Standard LSTM
-Perlexity 115
+Perplexity 115
 
 #### Gated Feedback LSTM
 A variation of the model described in *Gated Feedback Recurrent Neural Networks (Chung et al., 2015)*. Use 2 or more layers for it.  
-Perlexity 107
+Perplexity 107
 
 #### 1D-Grid LSTM
-1D version of Grid LSTM with cells on depth dimension as well. The original paper is *Grid LSTM (Kalchbrenner et al., 2015)*. This is also the architecture described in *Depth-Gated LSTM (Yao et al., 2015)*.
-Perlexity 112
+1D version of Grid LSTM with cells on depth dimension as well. The original paper is *Grid LSTM (Kalchbrenner et al., 2015)*, also described in *Depth-Gated LSTM (Yao et al., 2015)*.
+Perplexity 112
 
 If you spot any mistake of the code, please kindly let me know by contacting cheng6076@gmail.com. 
